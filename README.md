@@ -9,6 +9,9 @@ been deprecated, leaving little alternatives.
 
 This implementaion of rcpd is fully self contained, stand alone, static binary, with zero dependencies. Doesn't require `rshd`, `inetd`, `shell` or anything else. It can be run from Docker.
 
+Fully open. No security. Ignoring user names, authentication, `.rhosts`, `/etc/hosts.equiv` and all that nonsense. It's obviously intended to be used
+on a secure LAN.
+
 ## Usage
 
 ### Server
