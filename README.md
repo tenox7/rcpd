@@ -19,6 +19,8 @@ The server must bind to port `514/tcp`, which may require elevated privileges.
 
 ### Docker
 
+https://hub.docker.com/r/tenox7/rcpd
+
 Inside docker container root dir is `/srv`:
 
 ```sh
