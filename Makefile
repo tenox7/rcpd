@@ -19,5 +19,10 @@ cross:
 	GOOS=windows GOARCH=amd64 go build -a -o rcpd-amd64-win64.exe
 	GOOS=windows GOARCH=arm64 go build -a -o rcpd-arm64-win64.exe
 
+docker-local:
+	GOOS=linux GOARCH=amd64 go build -a -o rcpd-amd64-linux .
+	GOOS=linux GOARCH=arm64 go build -a -o rcpd-arm64-linux .
+	docker buildx build --platform linux/amd64,linux/arm64 -t tenox7/rcpd:latest --load .
+
 clean:
-	rm rcpd rcpd-*
+	rm -f rcpd rcpd-*

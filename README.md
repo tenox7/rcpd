@@ -17,6 +17,14 @@ been deprecated, leaving no alternatives, maybe except [tftp](https://en.wikiped
 
 The server must bind to port `514/tcp`, which may require elevated privileges.
 
+### Docker
+
+Inside docker container root dir is `/srv`:
+
+```sh
+docker run -d --name rcpd -v /some/dir:/srv -p 514:514 tenox7/rcpd:latest
+```
+
 ### Client
 
 Just like `scp`:
