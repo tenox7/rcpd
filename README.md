@@ -11,7 +11,11 @@ been deprecated, leaving no alternatives, maybe except [tftp](https://en.wikiped
 
 ### Server
 
+```sh
 ./rcpd -root_dir=/some/path
+```
+
+The server must bind to port `514/tcp`, which may require elevated privileges.
 
 ### Client
 
