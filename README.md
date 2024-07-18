@@ -1,11 +1,13 @@
 # RCPD
 
-This is a modern re-implementation of [rcp](https://linux.die.net/man/1/rcp) (remote copy protocol) daemon, originally part [berkeley r-commands](https://en.wikipedia.org/wiki/Berkeley_r-commands)
+This is a modern re-implementation of [rcp](https://linux.die.net/man/1/rcp) (remote copy protocol) daemon, originally part [berkeley r-commands](https://en.wikipedia.org/wiki/Berkeley_r-commands).
 
 ## Motivation
 
 Copy files between vintage computer clients and modern server/NAS. R-commands are ubiquitous on old operating systems, even on Windows NT. However, in recent years both r-daemons and [inetd](https://en.wikipedia.org/wiki/Inetd) have
-been deprecated, leaving no alternatives, maybe except [tftp](https://en.wikipedia.org/wiki/Trivial_File_Transfer_Protocol).
+been deprecated, leaving little alternatives.
+
+This implementaion of rcpd is fully self contained, stand alone, static binary, with zero dependencies. Doesn't require `rshd`, `inetd`, `shell` or anything else. It can be run from Docker.
 
 ## Usage
 
