@@ -4,6 +4,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/hex"
 	"flag"
 	"fmt"
@@ -13,7 +14,6 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -83,7 +83,7 @@ func handleConnection(conn net.Conn) {
 		}
 		fullCommand = append(fullCommand, b)
 
-		if strings.Contains(string(fullCommand), "rcp ") && strings.HasSuffix(string(fullCommand), "\x00") {
+		if bytes.Contains(fullCommand, []byte("rcp ")) && bytes.HasSuffix(fullCommand, []byte{0}) {
 			commandComplete = true
 		}
 	}
@@ -95,7 +95,7 @@ func handleConnection(conn net.Conn) {
 
 	log.Printf("Received full command from %s: %s", remoteAddr, hex.Dump(fullCommand))
 
-	parts := strings.Split(string(fullCommand), "\x00")
+	parts := bytes.Split(fullCommand, []byte{0})
 	log.Printf("Split command parts: %#v", parts)
 	if len(parts) < 4 {
 		log.Printf("Invalid command format from %s: not enough parts", remoteAddr)
@@ -104,28 +104,28 @@ func handleConnection(conn net.Conn) {
 	command := parts[3]
 	log.Printf("Command: %q", command)
 
-	if strings.HasPrefix(command, "rcp -t ") {
+	if bytes.HasPrefix(command, []byte("rcp -t ")) {
 		handleReceiveFile(conn, reader, remoteAddr, command)
-	} else if strings.HasPrefix(command, "rcp -f ") {
+	} else if bytes.HasPrefix(command, []byte("rcp -f ")) {
 		handleSendFile(conn, reader, remoteAddr, command)
 	} else {
 		log.Printf("Invalid command format from %s: %q", remoteAddr, command)
 	}
 }
 
-func handleReceiveFile(conn net.Conn, reader *bufio.Reader, remoteAddr, command string) {
-	targetPath := strings.TrimPrefix(command, "rcp -t ")
+func handleReceiveFile(conn net.Conn, reader *bufio.Reader, remoteAddr string, command []byte) {
+	targetPath := bytes.TrimPrefix(command, []byte("rcp -t "))
 	log.Printf("Target path: %q", targetPath)
 
 	// If targetPath is empty or ".", use the root directory
-	if targetPath == "" || targetPath == "." {
-		targetPath = "/"
+	if len(targetPath) == 0 || bytes.Equal(targetPath, []byte(".")) {
+		targetPath = []byte("/")
 	}
 
-	fullTargetPath := filepath.Join(root, targetPath)
+	fullTargetPath := filepath.Join(root, string(targetPath))
 	fullTargetPath = filepath.Clean(fullTargetPath)
 
-	if !strings.HasPrefix(fullTargetPath, root) {
+	if !bytes.HasPrefix([]byte(fullTargetPath), []byte(root)) {
 		log.Printf("Attempted access outside of root directory: %s", fullTargetPath)
 		return
 	}
@@ -141,7 +141,7 @@ func handleReceiveFile(conn net.Conn, reader *bufio.Reader, remoteAddr, command 
 
 	for {
 		conn.SetDeadline(time.Now().Add(TIMEOUT))
-		command, err := reader.ReadString('\n')
+		command, err := reader.ReadBytes('\n')
 		if err != nil {
 			if err == io.EOF {
 				log.Printf("Received EOF from %s, ending transfer", remoteAddr)
@@ -151,16 +151,16 @@ func handleReceiveFile(conn net.Conn, reader *bufio.Reader, remoteAddr, command 
 			return
 		}
 
-		command = strings.TrimSpace(command)
+		command = bytes.TrimSpace(command)
 		log.Printf("Received command from %s: %q", remoteAddr, command)
 
-		if strings.HasPrefix(command, "C") {
+		if bytes.HasPrefix(command, []byte("C")) {
 			err = handleBinaryFileTransfer(conn, reader, remoteAddr, fullTargetPath, command)
 			if err != nil {
 				log.Printf("Error handling file transfer: %v", err)
 				return
 			}
-		} else if strings.HasPrefix(command, "E") {
+		} else if bytes.HasPrefix(command, []byte("E")) {
 			log.Printf("Received end of transfer from %s", remoteAddr)
 			conn.SetDeadline(time.Now().Add(TIMEOUT))
 			conn.Write([]byte{0}) // Send final acknowledgement
@@ -171,27 +171,27 @@ func handleReceiveFile(conn net.Conn, reader *bufio.Reader, remoteAddr, command 
 	}
 }
 
-func handleBinaryFileTransfer(conn net.Conn, reader *bufio.Reader, remoteAddr, targetPath, fileInfo string) error {
-	parts := strings.SplitN(strings.TrimSpace(fileInfo[1:]), " ", 3)
+func handleBinaryFileTransfer(conn net.Conn, reader *bufio.Reader, remoteAddr, targetPath string, fileInfo []byte) error {
+	parts := bytes.SplitN(bytes.TrimSpace(fileInfo[1:]), []byte(" "), 3)
 	if len(parts) != 3 {
 		return fmt.Errorf("invalid file info format: %q", fileInfo)
 	}
 
-	fileMode, err := strconv.ParseInt(parts[0], 8, 32)
+	fileMode, err := strconv.ParseInt(string(parts[0]), 8, 32)
 	if err != nil {
 		return fmt.Errorf("invalid file mode: %v", err)
 	}
 
-	fileSize, err := strconv.ParseInt(parts[1], 10, 64)
+	fileSize, err := strconv.ParseInt(string(parts[1]), 10, 64)
 	if err != nil {
 		return fmt.Errorf("invalid file size: %v", err)
 	}
 
-	fileName := parts[2]
+	fileName := string(parts[2])
 	filePath := filepath.Join(targetPath, fileName)
 	filePath = filepath.Clean(filePath)
 
-	if !strings.HasPrefix(filePath, root) {
+	if !bytes.HasPrefix([]byte(filePath), []byte(root)) {
 		return fmt.Errorf("attempted access outside of root directory: %s", filePath)
 	}
 
@@ -258,14 +258,14 @@ func handleBinaryFileTransfer(conn net.Conn, reader *bufio.Reader, remoteAddr, t
 	return nil
 }
 
-func handleSendFile(conn net.Conn, reader *bufio.Reader, remoteAddr, command string) {
-	sourcePath := strings.TrimPrefix(command, "rcp -f ")
+func handleSendFile(conn net.Conn, reader *bufio.Reader, remoteAddr string, command []byte) {
+	sourcePath := bytes.TrimPrefix(command, []byte("rcp -f "))
 	log.Printf("Source path: %q", sourcePath)
 
-	fullSourcePath := filepath.Join(root, sourcePath)
+	fullSourcePath := filepath.Join(root, string(sourcePath))
 	fullSourcePath = filepath.Clean(fullSourcePath)
 
-	if !strings.HasPrefix(fullSourcePath, root) {
+	if !bytes.HasPrefix([]byte(fullSourcePath), []byte(root)) {
 		log.Printf("Attempted access outside of root directory: %s", fullSourcePath)
 		return
 	}
