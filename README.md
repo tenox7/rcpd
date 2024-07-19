@@ -4,11 +4,13 @@ This is a modern re-implementation of [rcp](https://linux.die.net/man/1/rcp) (re
 
 ## Motivation
 
-Easily copy files between vintage computer clients and a modern server/NAS. The r-commands are ubiquitous on old operating systems, even Windows NT. Also they are very easy from networking point of view, using only a single TCP port, unlike for example `ftp` or `tftp`. However, in recent years both r-daemons and [inetd](https://en.wikipedia.org/wiki/Inetd) have been deprecated, leaving little alternatives.
+Easily copy files between vintage computer clients and a modern server/NAS. The r-commands are ubiquitous on old operating systems, even Windows NT. Also rcp is NAT/QEMU/Docker frienly as it uses only a single TCP port, unlike for example `ftp` or `tftp`.
+
+In recent years both r-daemons and [inetd](https://en.wikipedia.org/wiki/Inetd) have been deprecated on modern OSes, leaving little alternatives.
 
 ## Implementation
 
-This implementaion of rcpd is fully self contained, stand-alone, statically linked binary, with zero dependencies. Doesn't require `rshd`, `inetd`, `shell` or anything else. It can be run from Docker with ease.
+This implementaion of rcpd is fully self contained, stand-alone, statically linked binary, with zero dependencies. Doesn't require `rshd`, `inetd`, `shell` or anything else. It can be run as a Docker container with ease.
 
 ## Security considerations
 
