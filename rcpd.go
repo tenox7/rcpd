@@ -54,11 +54,11 @@ func main() {
 			log.Printf("Failed to accept connection: %v", err)
 			continue
 		}
-		go handleConnection(conn)
+		go rConn(conn)
 	}
 }
 
-func handleConnection(conn net.Conn) {
+func rConn(conn net.Conn) {
 	defer conn.Close()
 	remoteAddr := conn.RemoteAddr().String()
 	log.Printf("New connection from %s", remoteAddr)
@@ -102,16 +102,17 @@ func handleConnection(conn net.Conn) {
 	command := parts[3]
 	log.Printf("Command: %q", command)
 
-	if bytes.HasPrefix(command, []byte("rcp -t ")) {
-		handleReceiveFile(conn, reader, remoteAddr, command)
-	} else if bytes.HasPrefix(command, []byte("rcp -f ")) {
-		handleSendFile(conn, reader, remoteAddr, command)
-	} else {
+	switch {
+	case bytes.HasPrefix(command, []byte("rcp -t ")):
+		recvFile(conn, reader, remoteAddr, command)
+	case bytes.HasPrefix(command, []byte("rcp -f ")):
+		sendFile(conn, reader, remoteAddr, command)
+	default:
 		log.Printf("Invalid command format from %s: %q", remoteAddr, command)
 	}
 }
 
-func handleReceiveFile(conn net.Conn, reader *bufio.Reader, remoteAddr string, command []byte) {
+func recvFile(conn net.Conn, reader *bufio.Reader, remoteAddr string, command []byte) {
 	targetPath := bytes.TrimPrefix(command, []byte("rcp -t "))
 	log.Printf("Target path: %q", targetPath)
 
@@ -152,24 +153,25 @@ func handleReceiveFile(conn net.Conn, reader *bufio.Reader, remoteAddr string, c
 		command = bytes.TrimSpace(command)
 		log.Printf("Received command from %s: %q", remoteAddr, command)
 
-		if bytes.HasPrefix(command, []byte("C")) {
-			err = handleBinaryFileTransfer(conn, reader, remoteAddr, fullTargetPath, command)
+		switch {
+		case bytes.HasPrefix(command, []byte("C")):
+			err = fileIo(conn, reader, remoteAddr, fullTargetPath, command)
 			if err != nil {
 				log.Printf("Error handling file transfer: %v", err)
 				return
 			}
-		} else if bytes.HasPrefix(command, []byte("E")) {
+		case bytes.HasPrefix(command, []byte("E")):
 			log.Printf("Received end of transfer from %s", remoteAddr)
 			conn.SetDeadline(time.Now().Add(timeout))
 			conn.Write([]byte{0}) // Send final acknowledgement
 			return
-		} else {
+		default:
 			log.Printf("Unexpected command received from %s: %q", remoteAddr, command)
 		}
 	}
 }
 
-func handleBinaryFileTransfer(conn net.Conn, reader *bufio.Reader, remoteAddr, targetPath string, fileInfo []byte) error {
+func fileIo(conn net.Conn, reader *bufio.Reader, remoteAddr, targetPath string, fileInfo []byte) error {
 	parts := bytes.SplitN(bytes.TrimSpace(fileInfo[1:]), []byte(" "), 3)
 	if len(parts) != 3 {
 		return fmt.Errorf("invalid file info format: %q", fileInfo)
@@ -256,7 +258,7 @@ func handleBinaryFileTransfer(conn net.Conn, reader *bufio.Reader, remoteAddr, t
 	return nil
 }
 
-func handleSendFile(conn net.Conn, reader *bufio.Reader, remoteAddr string, command []byte) {
+func sendFile(conn net.Conn, reader *bufio.Reader, remoteAddr string, command []byte) {
 	sourcePath := bytes.TrimPrefix(command, []byte("rcp -f "))
 	log.Printf("Source path: %q", sourcePath)
 
