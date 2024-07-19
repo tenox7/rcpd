@@ -17,19 +17,17 @@ import (
 	"time"
 )
 
-const (
-	TIMEOUT = 30 * time.Second
-)
-
 var (
-	root string
-	addr string
+	root    string
+	addr    string
+	timeout time.Duration
 )
 
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	flag.StringVar(&root, "root_dir", "", "Root directory for file operations")
 	flag.StringVar(&addr, "bind_addr", ":514", "bind addr, :514 by default")
+	flag.DurationVar(&timeout, "timeout", 30*time.Second, "Timeout for operations")
 	flag.Parse()
 
 	if root == "" {
@@ -48,7 +46,7 @@ func main() {
 	}
 	defer listener.Close()
 
-	log.Printf("RCP server listening on %s with root directory: %s", addr, root)
+	log.Printf("RCP server listening on %s with root directory: %s, timeout: %s", addr, root, timeout)
 
 	for {
 		conn, err := listener.Accept()
@@ -71,7 +69,7 @@ func handleConnection(conn net.Conn) {
 	commandComplete := false
 	startTime := time.Now()
 
-	for !commandComplete && time.Since(startTime) < TIMEOUT {
+	for !commandComplete && time.Since(startTime) < timeout {
 		conn.SetReadDeadline(time.Now().Add(time.Second))
 		b, err := reader.ReadByte()
 		if err != nil {
@@ -132,15 +130,15 @@ func handleReceiveFile(conn net.Conn, reader *bufio.Reader, remoteAddr string, c
 
 	log.Printf("Resolved target path: %q", fullTargetPath)
 
-	conn.SetDeadline(time.Now().Add(TIMEOUT))
+	conn.SetDeadline(time.Now().Add(timeout))
 	conn.Write([]byte{0})
 	time.Sleep(100 * time.Millisecond)
-	conn.SetDeadline(time.Now().Add(TIMEOUT))
+	conn.SetDeadline(time.Now().Add(timeout))
 	conn.Write([]byte{0})
 	log.Printf("Sent acknowledgements to %s", remoteAddr)
 
 	for {
-		conn.SetDeadline(time.Now().Add(TIMEOUT))
+		conn.SetDeadline(time.Now().Add(timeout))
 		command, err := reader.ReadBytes('\n')
 		if err != nil {
 			if err == io.EOF {
@@ -162,7 +160,7 @@ func handleReceiveFile(conn net.Conn, reader *bufio.Reader, remoteAddr string, c
 			}
 		} else if bytes.HasPrefix(command, []byte("E")) {
 			log.Printf("Received end of transfer from %s", remoteAddr)
-			conn.SetDeadline(time.Now().Add(TIMEOUT))
+			conn.SetDeadline(time.Now().Add(timeout))
 			conn.Write([]byte{0}) // Send final acknowledgement
 			return
 		} else {
@@ -208,7 +206,7 @@ func handleBinaryFileTransfer(conn net.Conn, reader *bufio.Reader, remoteAddr, t
 	}
 	defer file.Close()
 
-	conn.SetDeadline(time.Now().Add(TIMEOUT))
+	conn.SetDeadline(time.Now().Add(timeout))
 	if _, err := conn.Write([]byte{0}); err != nil {
 		return fmt.Errorf("failed to send acknowledgement: %v", err)
 	}
@@ -216,7 +214,7 @@ func handleBinaryFileTransfer(conn net.Conn, reader *bufio.Reader, remoteAddr, t
 	buffer := make([]byte, 32*1024)
 	var totalReceived int64
 	for totalReceived < fileSize {
-		conn.SetDeadline(time.Now().Add(TIMEOUT))
+		conn.SetDeadline(time.Now().Add(timeout))
 		n, err := reader.Read(buffer)
 		if err != nil {
 			if err == io.EOF {
@@ -239,7 +237,7 @@ func handleBinaryFileTransfer(conn net.Conn, reader *bufio.Reader, remoteAddr, t
 	log.Printf("File transfer completed: %s (received %d bytes)", filePath, totalReceived)
 
 	// Read the null byte that indicates end of file
-	conn.SetDeadline(time.Now().Add(TIMEOUT))
+	conn.SetDeadline(time.Now().Add(timeout))
 	endByte, err := reader.ReadByte()
 	if err != nil {
 		if err != io.EOF {
@@ -250,7 +248,7 @@ func handleBinaryFileTransfer(conn net.Conn, reader *bufio.Reader, remoteAddr, t
 	}
 
 	// Send final acknowledgement
-	conn.SetDeadline(time.Now().Add(TIMEOUT))
+	conn.SetDeadline(time.Now().Add(timeout))
 	if _, err := conn.Write([]byte{0}); err != nil {
 		return fmt.Errorf("failed to send final acknowledgement: %v", err)
 	}
@@ -275,7 +273,7 @@ func handleSendFile(conn net.Conn, reader *bufio.Reader, remoteAddr string, comm
 	file, err := os.Open(fullSourcePath)
 	if err != nil {
 		log.Printf("Failed to open file %s: %v", fullSourcePath, err)
-		conn.SetDeadline(time.Now().Add(TIMEOUT))
+		conn.SetDeadline(time.Now().Add(timeout))
 		conn.Write([]byte{1})
 		return
 	}
@@ -284,26 +282,26 @@ func handleSendFile(conn net.Conn, reader *bufio.Reader, remoteAddr string, comm
 	fileInfo, err := file.Stat()
 	if err != nil {
 		log.Printf("Failed to get file info for %s: %v", fullSourcePath, err)
-		conn.SetDeadline(time.Now().Add(TIMEOUT))
+		conn.SetDeadline(time.Now().Add(timeout))
 		conn.Write([]byte{1})
 		return
 	}
 
-	conn.SetDeadline(time.Now().Add(TIMEOUT))
+	conn.SetDeadline(time.Now().Add(timeout))
 	if _, err := conn.Write([]byte{0}); err != nil {
 		log.Printf("Failed to send initial byte to client %s: %v", remoteAddr, err)
 		return
 	}
 
 	fileInfoStr := fmt.Sprintf("C%04o %d %s\n", fileInfo.Mode().Perm(), fileInfo.Size(), filepath.Base(fullSourcePath))
-	conn.SetDeadline(time.Now().Add(TIMEOUT))
+	conn.SetDeadline(time.Now().Add(timeout))
 	if _, err := conn.Write([]byte(fileInfoStr)); err != nil {
 		log.Printf("Failed to send file info for %s: %v", fullSourcePath, err)
 		return
 	}
 	log.Printf("Sent file info to client %s: %s", remoteAddr, fileInfoStr)
 
-	conn.SetDeadline(time.Now().Add(TIMEOUT))
+	conn.SetDeadline(time.Now().Add(timeout))
 	ack, err := reader.ReadByte()
 	if err != nil || ack != 0 {
 		log.Printf("Failed to receive acknowledgement for file info from client %s: %v", remoteAddr, err)
@@ -313,14 +311,14 @@ func handleSendFile(conn net.Conn, reader *bufio.Reader, remoteAddr string, comm
 	buffer := make([]byte, 32*1024)
 	var totalSent int64
 	for totalSent < fileInfo.Size() {
-		conn.SetDeadline(time.Now().Add(TIMEOUT))
+		conn.SetDeadline(time.Now().Add(timeout))
 		n, err := file.Read(buffer)
 		if err != nil && err != io.EOF {
 			log.Printf("Error reading file %s: %v", fullSourcePath, err)
 			return
 		}
 		if n > 0 {
-			conn.SetDeadline(time.Now().Add(TIMEOUT))
+			conn.SetDeadline(time.Now().Add(timeout))
 			if _, err := conn.Write(buffer[:n]); err != nil {
 				log.Printf("Error sending file content for %s: %v", fullSourcePath, err)
 				return
@@ -334,13 +332,13 @@ func handleSendFile(conn net.Conn, reader *bufio.Reader, remoteAddr string, comm
 
 	log.Printf("File transfer completed: %s (sent %d bytes)", fullSourcePath, totalSent)
 
-	conn.SetDeadline(time.Now().Add(TIMEOUT))
+	conn.SetDeadline(time.Now().Add(timeout))
 	if _, err := conn.Write([]byte{0}); err != nil {
 		log.Printf("Failed to send end-of-file marker to client %s: %v", remoteAddr, err)
 		return
 	}
 
-	conn.SetDeadline(time.Now().Add(TIMEOUT))
+	conn.SetDeadline(time.Now().Add(timeout))
 	ack, err = reader.ReadByte()
 	if err != nil || ack != 0 {
 		log.Printf("Failed to receive final acknowledgement from client %s: %v", remoteAddr, err)
