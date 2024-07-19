@@ -97,18 +97,11 @@ func handleConnection(conn net.Conn) {
 
 	parts := strings.Split(string(fullCommand), "\x00")
 	log.Printf("Split command parts: %#v", parts)
-
 	if len(parts) < 4 {
 		log.Printf("Invalid command format from %s: not enough parts", remoteAddr)
 		return
 	}
-
-	clientUsername := parts[1]
-	serverUsername := parts[2]
 	command := parts[3]
-
-	log.Printf("Client username: %q", clientUsername)
-	log.Printf("Server username: %q", serverUsername)
 	log.Printf("Command: %q", command)
 
 	if strings.HasPrefix(command, "rcp -t ") {
