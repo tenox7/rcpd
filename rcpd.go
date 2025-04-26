@@ -27,7 +27,7 @@ func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	flag.StringVar(&root, "root_dir", "", "Root directory for file operations")
 	flag.StringVar(&addr, "bind_addr", ":514", "bind addr, :514 by default")
-	flag.DurationVar(&timeout, "timeout", 30*time.Second, "Timeout for operations")
+	flag.DurationVar(&timeout, "timeout", 300*time.Second, "Timeout for operations")
 	flag.Parse()
 
 	if root == "" {

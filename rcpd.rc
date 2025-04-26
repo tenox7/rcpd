@@ -1,0 +1,25 @@
+#!/bin/sh
+# freebsd rc service file
+# move to /usr/local/etc/rc.d/rcpd
+# Example config for /etc/rc.conf: 
+# rcpd_enable="YES" 
+# rcpd_flags="-root_dir /var/rcpd"
+
+# PROVIDE: rcpd
+# REQUIRE: NETWORKING
+# KEYWORD: shutdown
+
+. /etc/rc.subr
+
+name="rcpd"
+rcvar="rcpd_enable"
+command="/usr/local/bin/rcpd"
+
+load_rc_config $name
+
+: ${rcpd_enable:="NO"}
+: ${rcpd_flags:="-root_dir /var/rcpd"}
+
+command_args="${rcpd_flags}"
+
+run_rc_command "$1"
