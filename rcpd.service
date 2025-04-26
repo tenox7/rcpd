@@ -1,0 +1,19 @@
+[Unit]
+Description=Remote Copy Protocol Daemon
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/rcpd -root_dir /var/rcpd 
+Restart=on-failure
+Type=simple
+User=nobody
+Group=nobody
+
+# Security hardening
+ProtectSystem=full
+ReadWritePaths=/var/rcpd
+PrivateTmp=true
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
