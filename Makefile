@@ -11,6 +11,7 @@ cross:
 	GOOS=darwin GOARCH=amd64 go build -a -o $(NAME)-amd64-macos .
 	GOOS=darwin GOARCH=arm64 go build -a -o $(NAME)-arm64-macos .
 	GOOS=freebsd GOARCH=amd64 go build -a -o $(NAME)-amd64-freebsd .
+	GOOS=freebsd GOARCH=arm64 go build -a -o $(NAME)-arm64-freebsd .
 	GOOS=openbsd GOARCH=amd64 go build -a -o $(NAME)-amd64-openbsd .
 	GOOS=netbsd GOARCH=amd64 go build -a -o $(NAME)-amd64-netbsd .
 	GOOS=solaris GOARCH=amd64 go build -a -o $(NAME)-adm64-solaris .
