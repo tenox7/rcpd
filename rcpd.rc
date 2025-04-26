@@ -13,13 +13,32 @@
 
 name="rcpd"
 rcvar="rcpd_enable"
-command="/usr/local/bin/rcpd"
+command="/usr/local/sbin/rcpd"
+procname="rcpd"
+pidfile="/var/run/${name}.pid"
 
 load_rc_config $name
 
 : ${rcpd_enable:="NO"}
 : ${rcpd_flags:="-root_dir /var/rcpd"}
 
-command_args="${rcpd_flags}"
+start_cmd="${name}_start"
+status_cmd="${name}_status"
+
+rcpd_start()
+{
+    echo "Starting ${name}."
+    /usr/sbin/daemon -f -p ${pidfile} ${command} ${rcpd_flags}
+}
+
+rcpd_status()
+{
+    if [ -e ${pidfile} ]; then
+        echo "${name} is running as pid $(cat ${pidfile})."
+    else
+        echo "${name} is not running."
+        return 1
+    fi
+}
 
 run_rc_command "$1"
